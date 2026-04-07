@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type SessionState = "idle" | "active" | "completed" | "interrupted";
+export type SessionState = "idle" | "active" | "completed";
 
 export type SessionSnapshot = {
   state: SessionState;

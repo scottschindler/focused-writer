@@ -95,6 +95,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const contentHtml = useRef("");
+  const dirty = useRef(false);
 
   const [showModal, setShowModal] = useState(false);
   const [passphrase, setPassphrase] = useState("");
@@ -159,10 +160,15 @@ function App() {
 
   const loadDocument = useCallback((doc: Document) => {
     setDocId(doc.id);
-    setTitle(doc.title);
     contentHtml.current = doc.content;
     if (contentRef.current) {
       contentRef.current.innerHTML = doc.content;
+      // Derive title from first line of content
+      const text = contentRef.current.innerText || "";
+      const firstLine = text.split("\n").find((l) => l.trim() !== "") || "";
+      setTitle(firstLine.trim().substring(0, 100));
+    } else {
+      setTitle(doc.title);
     }
   }, []);
 
@@ -189,8 +195,13 @@ function App() {
   }, [loadOrCreate]);
 
   // Track session completions for trial counting
+  const prevSessionState = useRef(session.state);
   useEffect(() => {
-    if (session.state === "completed") {
+    const prev = prevSessionState.current;
+    prevSessionState.current = session.state;
+
+    // Count a session when it transitions from active to completed or idle (interrupted)
+    if (prev === "active" && (session.state === "completed" || session.state === "idle")) {
       recordSessionCompleted().then(setLicense);
     }
   }, [session.state]);
@@ -199,15 +210,17 @@ function App() {
     if (docId === null) return;
     setStatus("Saving...");
     await invoke("update_document", { id: docId, title, content: contentHtml.current });
+    dirty.current = false;
     setStatus("Saved");
     await loadDocs();
     setTimeout(() => setStatus(""), 1500);
   }, [docId, title, loadDocs]);
 
   const createNew = useCallback(async () => {
-    // Save current first
-    if (docId !== null) {
+    // Only save current if it was edited
+    if (docId !== null && dirty.current) {
       await invoke("update_document", { id: docId, title, content: contentHtml.current });
+      dirty.current = false;
     }
     const id = await invoke<number>("create_document");
     setDocId(id);
@@ -221,13 +234,14 @@ function App() {
   }, [docId, title, loadDocs, updateCounts]);
 
   const switchDoc = useCallback(async (doc: Document) => {
-    // Save current first
-    if (docId !== null) {
+    // Only save current if it was edited
+    if (docId !== null && dirty.current) {
       await invoke("update_document", { id: docId, title, content: contentHtml.current });
+      dirty.current = false;
+      await loadDocs();
     }
     loadDocument(doc);
     updateCounts();
-    await loadDocs();
   }, [docId, title, loadDocument, loadDocs, updateCounts]);
 
   const deleteDoc = useCallback(async (id: number) => {
@@ -335,7 +349,12 @@ function App() {
   const handleInput = () => {
     if (contentRef.current) {
       contentHtml.current = contentRef.current.innerHTML;
+      dirty.current = true;
       updateCounts();
+      // Derive title from first line of text
+      const text = contentRef.current.innerText || "";
+      const firstLine = text.split("\n").find((l) => l.trim() !== "") || "";
+      setTitle(firstLine.trim().substring(0, 100));
     }
   };
 
@@ -426,12 +445,6 @@ function App() {
         {/* Main content */}
         <div className="main">
           <div className="toolbar">
-            <input
-              className="title-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Untitled"
-            />
             <span className="status">{status}</span>
           </div>
 

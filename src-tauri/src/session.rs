@@ -60,7 +60,9 @@ impl SessionState {
     }
 
     pub fn interrupt(&mut self) {
-        self.state = "interrupted".to_string();
+        self.state = "idle".to_string();
+        self.duration_sec = 0;
+        self.started_at = None;
         self.ends_at = None;
     }
 

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::enforcement::EnforcementState;
 use crate::session::SessionSnapshot;
@@ -152,7 +152,7 @@ pub fn delete_document(state: State<AppState>, id: i64) -> Result<(), String> {
 // ── Session commands ───────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn start_session(duration_sec: u64, state: State<AppState>) -> Result<SessionSnapshot, String> {
+pub fn start_session(app_handle: AppHandle, duration_sec: u64, state: State<AppState>) -> Result<SessionSnapshot, String> {
     if duration_sec == 0 {
         return Err("duration_sec must be > 0".into());
     }
@@ -170,6 +170,9 @@ pub fn start_session(duration_sec: u64, state: State<AppState>) -> Result<Sessio
         *guard = Some(enf);
     }
 
+    #[cfg(target_os = "macos")]
+    let _ = app_handle.set_dock_visibility(false);
+
     Ok(session.snapshot())
 }
 
@@ -181,7 +184,7 @@ pub fn get_session(state: State<AppState>) -> Result<SessionSnapshot, String> {
 }
 
 #[tauri::command]
-pub fn stop_session(state: State<AppState>) -> Result<SessionSnapshot, String> {
+pub fn stop_session(app_handle: AppHandle, state: State<AppState>) -> Result<SessionSnapshot, String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.stop();
 
@@ -189,11 +192,15 @@ pub fn stop_session(state: State<AppState>) -> Result<SessionSnapshot, String> {
         *guard = None;
     }
 
+    #[cfg(target_os = "macos")]
+    let _ = app_handle.set_dock_visibility(true);
+
     Ok(session.snapshot())
 }
 
 #[tauri::command]
 pub fn interrupt_session(
+    app_handle: AppHandle,
     state: State<AppState>,
     passphrase: String,
 ) -> Result<SessionSnapshot, String> {
@@ -208,11 +215,14 @@ pub fn interrupt_session(
         *guard = None;
     }
 
+    #[cfg(target_os = "macos")]
+    let _ = app_handle.set_dock_visibility(true);
+
     Ok(session.snapshot())
 }
 
 #[tauri::command]
-pub fn unlock_quit(passphrase: String, state: State<AppState>) -> Result<(), String> {
+pub fn unlock_quit(app_handle: AppHandle, passphrase: String, state: State<AppState>) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
 
     if session.state != "active" {
@@ -230,6 +240,9 @@ pub fn unlock_quit(passphrase: String, state: State<AppState>) -> Result<(), Str
     if let Ok(mut guard) = state.enforcement.lock() {
         *guard = None;
     }
+
+    #[cfg(target_os = "macos")]
+    let _ = app_handle.set_dock_visibility(true);
 
     let mut allow_quit = state.allow_quit.lock().map_err(|e| e.to_string())?;
     *allow_quit = true;
