@@ -61,23 +61,31 @@ fn main() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .menu(|app| {
-            let app_menu = SubmenuBuilder::new(app, "Focused Writer")
+        .manage(AppState {
+            db: Mutex::new(conn),
+            session: Mutex::new(SessionState::new()),
+            enforcement: Mutex::new(None),
+            allow_quit: Mutex::new(false),
+        })
+        .setup(|app| {
+            let handle = app.handle();
+
+            let app_menu = SubmenuBuilder::new(handle, "Focused Writer")
                 .item(&PredefinedMenuItem::about(
-                    app,
+                    handle,
                     Some("Focused Writer"),
                     None,
                 )?)
                 .separator()
-                .item(&PredefinedMenuItem::hide(app, None)?)
-                .item(&PredefinedMenuItem::hide_others(app, None)?)
-                .item(&PredefinedMenuItem::show_all(app, None)?)
+                .item(&PredefinedMenuItem::hide(handle, None)?)
+                .item(&PredefinedMenuItem::hide_others(handle, None)?)
+                .item(&PredefinedMenuItem::show_all(handle, None)?)
                 .separator()
-                .item(&PredefinedMenuItem::close_window(app, None)?)
+                .item(&PredefinedMenuItem::close_window(handle, None)?)
                 .quit()
                 .build()?;
 
-            let edit_menu = SubmenuBuilder::new(app, "Edit")
+            let edit_menu = SubmenuBuilder::new(handle, "Edit")
                 .undo()
                 .redo()
                 .separator()
@@ -87,18 +95,13 @@ fn main() {
                 .select_all()
                 .build()?;
 
-            MenuBuilder::new(app)
+            let menu = MenuBuilder::new(handle)
                 .item(&app_menu)
                 .item(&edit_menu)
-                .build()
-        })
-        .manage(AppState {
-            db: Mutex::new(conn),
-            session: Mutex::new(SessionState::new()),
-            enforcement: Mutex::new(None),
-            allow_quit: Mutex::new(false),
-        })
-        .setup(|app| {
+                .build()?;
+
+            app.set_menu(menu)?;
+
             let app_handle = app.handle().clone();
 
             thread::spawn(move || {
@@ -124,6 +127,9 @@ fn main() {
                         if let Ok(mut enf) = app_handle.state::<AppState>().enforcement.lock() {
                             *enf = None;
                         }
+
+                        #[cfg(target_os = "macos")]
+                        let _ = app_handle.set_dock_visibility(true);
 
                         if let Some(win) = app_handle.get_webview_window("main") {
                             let _ = win.set_always_on_top(false);
