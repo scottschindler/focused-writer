@@ -598,13 +598,13 @@ function App() {
               <div className="paywall-content">
                 <h2 className="paywall-title">Free trial complete</h2>
                 <p className="paywall-desc">
-                  You've used your 3 free sessions. Purchase Focused Writer for a one-time fee of $15 to continue.
+                  You've used your 3 free sessions. Get lifetime access to Focused Writer for a one-time payment of $15.
                 </p>
                 <button
                   className="paywall-buy"
                   onClick={() => open("https://buy.stripe.com/eVq9AV8aT3fBaro0F06J200")}
                 >
-                  Buy for $15
+                  Buy for $15 — Lifetime Access
                 </button>
                 <div className="paywall-activate">
                   <p className="paywall-activate-label">Already purchased? Enter your activation code:</p>
