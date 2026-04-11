@@ -33,7 +33,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": ["app", "dmg", "updater"],
     "icon": [
       "icons/128x128.png",
       "icons/128x128@2x.png",
