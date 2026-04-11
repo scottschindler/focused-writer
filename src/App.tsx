@@ -201,6 +201,7 @@ function App() {
   }, [loadOrCreate]);
 
   useEffect(() => {
+    if (import.meta.env.DEV) return;
     checkForUpdate()
       .then((result) => {
         if (result.available && result.version && result.update) {
