@@ -61,7 +61,7 @@ function App() {
 
       <main className="hero">
         <div className="hero-left">
-          <h1>Just Write. Block everything else.</h1>
+          <h1>Just Write.<br />Block everything else.</h1>
           <p>
             A minimalist desktop environment that enforces focus at the system
             level. You set the timer. We block all other applications. No
