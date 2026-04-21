@@ -121,6 +121,7 @@ function App() {
   const contentRef = useRef<HTMLDivElement>(null);
   const contentHtml = useRef("");
   const dirty = useRef(false);
+  const autosaveTimer = useRef<number | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [passphrase, setPassphrase] = useState("");
@@ -251,6 +252,10 @@ function App() {
 
   const save = useCallback(async () => {
     if (docId === null) return;
+    if (autosaveTimer.current !== null) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = null;
+    }
     setStatus("Saving...");
     await invoke("update_document", { id: docId, title, content: contentHtml.current });
     dirty.current = false;
@@ -260,6 +265,10 @@ function App() {
   }, [docId, title, loadDocs]);
 
   const createNew = useCallback(async () => {
+    if (autosaveTimer.current !== null) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = null;
+    }
     // Only save current if it was edited
     if (docId !== null && dirty.current) {
       await invoke("update_document", { id: docId, title, content: contentHtml.current });
@@ -277,6 +286,10 @@ function App() {
   }, [docId, title, loadDocs, updateCounts]);
 
   const switchDoc = useCallback(async (doc: Document) => {
+    if (autosaveTimer.current !== null) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = null;
+    }
     // Only save current if it was edited
     if (docId !== null && dirty.current) {
       await invoke("update_document", { id: docId, title, content: contentHtml.current });
@@ -369,6 +382,18 @@ function App() {
         setShowModal(false);
         setPassphrase("");
         setModalError("");
+        if (autosaveTimer.current !== null) {
+          window.clearTimeout(autosaveTimer.current);
+          autosaveTimer.current = null;
+        }
+        if (docId !== null && dirty.current) {
+          await invoke("update_document", {
+            id: docId,
+            title,
+            content: contentHtml.current,
+          });
+          dirty.current = false;
+        }
         await getCurrentWindow().close();
       } else {
         await interrupt(passphrase, expectedPassphrase);
@@ -398,6 +423,26 @@ function App() {
     if (contentRef.current) {
       contentHtml.current = contentRef.current.innerHTML;
       dirty.current = true;
+      if (autosaveTimer.current !== null) {
+        window.clearTimeout(autosaveTimer.current);
+      }
+      autosaveTimer.current = window.setTimeout(() => {
+        autosaveTimer.current = null;
+        if (docId !== null && dirty.current) {
+          const text = contentRef.current?.innerText || "";
+          const firstLine = text.split("\n").find((l) => l.trim() !== "") || "";
+          const freshTitle = firstLine.trim().substring(0, 100);
+          invoke("update_document", {
+            id: docId,
+            title: freshTitle,
+            content: contentHtml.current,
+          })
+            .then(() => {
+              dirty.current = false;
+            })
+            .catch(() => {});
+        }
+      }, 1000);
       updateCounts();
       // Derive title from first line of text
       const text = contentRef.current.innerText || "";
