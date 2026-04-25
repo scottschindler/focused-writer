@@ -28,3 +28,11 @@ pub fn leave(app_handle: &AppHandle) {
     #[cfg(target_os = "macos")]
     let _ = app_handle.set_dock_visibility(true);
 }
+
+pub fn leave_and_minimize(app_handle: &AppHandle) {
+    leave(app_handle);
+
+    if let Some(win) = app_handle.get_webview_window("main") {
+        let _ = win.minimize();
+    }
+}

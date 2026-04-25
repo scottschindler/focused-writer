@@ -153,7 +153,11 @@ pub fn delete_document(state: State<AppState>, id: i64) -> Result<(), String> {
 // ── Session commands ───────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn start_session(app_handle: AppHandle, duration_sec: u64, state: State<AppState>) -> Result<SessionSnapshot, String> {
+pub fn start_session(
+    app_handle: AppHandle,
+    duration_sec: u64,
+    state: State<AppState>,
+) -> Result<SessionSnapshot, String> {
     if duration_sec == 0 {
         return Err("duration_sec must be > 0".into());
     }
@@ -177,14 +181,31 @@ pub fn start_session(app_handle: AppHandle, duration_sec: u64, state: State<AppS
 }
 
 #[tauri::command]
-pub fn get_session(state: State<AppState>) -> Result<SessionSnapshot, String> {
+pub fn get_session(
+    app_handle: AppHandle,
+    state: State<AppState>,
+) -> Result<SessionSnapshot, String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    session.maybe_complete();
-    Ok(session.snapshot())
+    let completed = session.maybe_complete();
+    let snapshot = session.snapshot();
+    drop(session);
+
+    if completed {
+        if let Ok(mut guard) = state.enforcement.lock() {
+            *guard = None;
+        }
+
+        focus_lock::leave_and_minimize(&app_handle);
+    }
+
+    Ok(snapshot)
 }
 
 #[tauri::command]
-pub fn stop_session(app_handle: AppHandle, state: State<AppState>) -> Result<SessionSnapshot, String> {
+pub fn stop_session(
+    app_handle: AppHandle,
+    state: State<AppState>,
+) -> Result<SessionSnapshot, String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.stop();
 
@@ -221,7 +242,12 @@ pub fn interrupt_session(
 }
 
 #[tauri::command]
-pub fn unlock_quit(app_handle: AppHandle, passphrase: String, expected_passphrase: String, state: State<AppState>) -> Result<(), String> {
+pub fn unlock_quit(
+    app_handle: AppHandle,
+    passphrase: String,
+    expected_passphrase: String,
+    state: State<AppState>,
+) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
 
     if session.state != "active" {

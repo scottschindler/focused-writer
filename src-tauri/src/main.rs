@@ -24,7 +24,11 @@ pub struct AppState {
 impl AppState {
     fn should_allow_quit(&self) -> bool {
         let allow_quit = self.allow_quit.lock().map(|g| *g).unwrap_or(false);
-        let session_active = self.session.lock().map(|s| s.state == "active").unwrap_or(false);
+        let session_active = self
+            .session
+            .lock()
+            .map(|s| s.state == "active")
+            .unwrap_or(false);
         allow_quit || !session_active
     }
 }
@@ -101,7 +105,13 @@ fn main() {
                 .item(&PredefinedMenuItem::show_all(handle, None)?)
                 .separator()
                 .item(&PredefinedMenuItem::close_window(handle, None)?)
-                .item(&MenuItem::with_id(handle, "custom-quit", "Quit Block Writer", true, Some("CmdOrCtrl+Q"))?)
+                .item(&MenuItem::with_id(
+                    handle,
+                    "custom-quit",
+                    "Quit Block Writer",
+                    true,
+                    Some("CmdOrCtrl+Q"),
+                )?)
                 .build()?;
 
             let edit_menu = SubmenuBuilder::new(handle, "Edit")
@@ -147,7 +157,7 @@ fn main() {
                             *enf = None;
                         }
 
-                        focus_lock::leave(&app_handle);
+                        focus_lock::leave_and_minimize(&app_handle);
                     }
 
                     if is_active {
